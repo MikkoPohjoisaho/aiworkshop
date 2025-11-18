@@ -31,13 +31,13 @@
      will execute in this procedure's storage, and that proper
      cleanup will occur on deletion of the procedure. */
 
-CREATE WIDGET-POOL.
-
-/* ***************************  Definitions  ************************** */
-
 /* Include business entity classes */
 USING business.ItemEntity FROM PROPATH.
 USING business.EntityFactory FROM PROPATH.
+
+CREATE WIDGET-POOL.
+
+/* ***************************  Definitions  ************************** */
 
 /* Include dataset definition */
 {business/ItemDataset.i}
@@ -225,10 +225,10 @@ END.
 &ANALYZE-SUSPEND _UIB-CODE-BLOCK _CONTROL BUTTON-3 C-Win
 ON CHOOSE OF BUTTON-3 IN FRAME DEFAULT-FRAME /* Get Item */
 DO:
-  VAR INTEGER iItemNumber.
-  VAR EntityFactory objFactory.
-  VAR ItemEntity objItemEntity.
-  VAR LOGICAL lItemFound.
+  DEFINE VARIABLE iItemNumber AS INTEGER NO-UNDO.
+  DEFINE VARIABLE objFactory AS EntityFactory NO-UNDO.
+  DEFINE VARIABLE objItemEntity AS ItemEntity NO-UNDO.
+  DEFINE VARIABLE lItemFound AS LOGICAL NO-UNDO.
   
   ASSIGN FILL-IN_ItemNum.
   iItemNumber = INTEGER(FILL-IN_ItemNum).
@@ -264,12 +264,12 @@ END.
 &ANALYZE-SUSPEND _UIB-CODE-BLOCK _CONTROL BUTTON-4 C-Win
 ON CHOOSE OF BUTTON-4 IN FRAME DEFAULT-FRAME /* Save */
 DO:
-  VAR INTEGER iItemNumber.
-  VAR EntityFactory objFactory.
-  VAR ItemEntity objItemEntity.
-  VAR LOGICAL lItemFound.
-  VAR LOGICAL isValid.
-  VAR CHARACTER cErrorMessage.
+  DEFINE VARIABLE iItemNumber AS INTEGER NO-UNDO.
+  DEFINE VARIABLE objFactory AS EntityFactory NO-UNDO.
+  DEFINE VARIABLE objItemEntity AS ItemEntity NO-UNDO.
+  DEFINE VARIABLE lItemFound AS LOGICAL NO-UNDO.
+  DEFINE VARIABLE isValid AS LOGICAL NO-UNDO.
+  DEFINE VARIABLE cErrorMessage AS CHARACTER NO-UNDO.
   
   ASSIGN FILL-IN_ItemNum FILL-IN_Price.
   iItemNumber = INTEGER(FILL-IN_ItemNum).
@@ -382,7 +382,7 @@ PROCEDURE enable_UI :
                Settings" section of the widget Property Sheets.
 ------------------------------------------------------------------------------*/
 
-  {&OPEN-QUERY-DEFAULT-FRAME}
+  {&OPEN-QUERY-DEFAULT-FRAME} 
   GET FIRST DEFAULT-FRAME.
   DISPLAY FILL-IN_ItemNum FILL-IN_Price 
       WITH FRAME DEFAULT-FRAME IN WINDOW C-Win.
