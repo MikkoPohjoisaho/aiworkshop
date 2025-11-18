@@ -31,9 +31,16 @@
      will execute in this procedure's storage, and that proper
      cleanup will occur on deletion of the procedure. */
 
+/* Include business entity classes */
+USING business.ItemEntity FROM PROPATH.
+USING business.EntityFactory FROM PROPATH.
+
 CREATE WIDGET-POOL.
 
 /* ***************************  Definitions  ************************** */
+
+/* Include dataset definition */
+{business/ItemDataset.i}
 
 /* Parameters Definitions ---                                           */
 
@@ -218,15 +225,34 @@ END.
 &ANALYZE-SUSPEND _UIB-CODE-BLOCK _CONTROL BUTTON-3 C-Win
 ON CHOOSE OF BUTTON-3 IN FRAME DEFAULT-FRAME /* Get Item */
 DO:
-  ASSIGN FILL-IN_ItemNum. 
-  FIND FIRST Item WHERE Item.ItemNum = INTEGER(FILL-IN_ItemNum) NO-LOCK NO-ERROR.
-  IF AVAILABLE Item THEN
-  DO:
-     FILL-IN_Price = Item.Price.
-     DISPLAY FILL-IN_Price WITH FRAME {&frame-name}.
+  DEFINE VARIABLE iItemNumber AS INTEGER NO-UNDO.
+  DEFINE VARIABLE objFactory AS EntityFactory NO-UNDO.
+  DEFINE VARIABLE objItemEntity AS ItemEntity NO-UNDO.
+  DEFINE VARIABLE lItemFound AS LOGICAL NO-UNDO.
+  
+  ASSIGN FILL-IN_ItemNum.
+  iItemNumber = INTEGER(FILL-IN_ItemNum).
+  
+  /* Get entity from factory */
+  objFactory = EntityFactory:GetInstance().
+  objItemEntity = objFactory:GetItemEntity().
+  
+  /* Call entity to fetch data */
+  lItemFound = objItemEntity:GetItemByNumber(
+      iItemNumber, 
+      OUTPUT DATASET dsItem
+  ).
+  
+  /* Update UI based on results */
+  IF lItemFound THEN DO:
+      FIND FIRST ttItem.
+      IF AVAILABLE ttItem THEN DO:
+          FILL-IN_Price = ttItem.Price.
+          DISPLAY FILL-IN_Price WITH FRAME {&frame-name}.
+      END.
   END.
   ELSE
-     MESSAGE 'Item not found' VIEW-AS ALERT-BOX.
+      MESSAGE 'Item not found' VIEW-AS ALERT-BOX.
 
 END.
 
@@ -238,27 +264,51 @@ END.
 &ANALYZE-SUSPEND _UIB-CODE-BLOCK _CONTROL BUTTON-4 C-Win
 ON CHOOSE OF BUTTON-4 IN FRAME DEFAULT-FRAME /* Save */
 DO:
-  VAR DECIMAL dTotal.
-  FIND FIRST Item WHERE Item.ItemNum = INTEGER(FILL-IN_ItemNum) EXCLUSIVE-LOCK NO-ERROR.
-  IF AVAILABLE Item THEN
-  DO:
-     ASSIGN FILL-IN_Price.
-     IF FILL-IN_Price = 0 THEN
-     DO:
-         MESSAGE 'Price cannot be empty' VIEW-AS ALERT-BOX.
-         RETURN NO-APPLY. 
-     END.
-     dTotal = Item.OnHand * FILL-IN_Price.
-     IF dTotal > 6000 THEN
-     DO:
-         MESSAGE 'Total value onhand will be ' dTotal 
-                 ', should not be larger than 6000' VIEW-AS ALERT-BOX.
-         RETURN NO-APPLY.
-     END.
-     Item.Price = FILL-IN_Price.    
+  DEFINE VARIABLE iItemNumber AS INTEGER NO-UNDO.
+  DEFINE VARIABLE objFactory AS EntityFactory NO-UNDO.
+  DEFINE VARIABLE objItemEntity AS ItemEntity NO-UNDO.
+  DEFINE VARIABLE lItemFound AS LOGICAL NO-UNDO.
+  DEFINE VARIABLE isValid AS LOGICAL NO-UNDO.
+  DEFINE VARIABLE cErrorMessage AS CHARACTER NO-UNDO.
+  
+  ASSIGN FILL-IN_ItemNum FILL-IN_Price.
+  iItemNumber = INTEGER(FILL-IN_ItemNum).
+  
+  /* Get entity from factory */
+  objFactory = EntityFactory:GetInstance().
+  objItemEntity = objFactory:GetItemEntity().
+  
+  /* Fetch existing item */
+  lItemFound = objItemEntity:GetItemByNumber(
+      iItemNumber, 
+      OUTPUT DATASET dsItem
+  ).
+  
+  IF lItemFound THEN DO:
+      FIND FIRST ttItem.
+      
+      /* Enable change tracking */
+      TEMP-TABLE ttItem:TRACKING-CHANGES = TRUE.
+      
+      /* Modify data */
+      ttItem.Price = FILL-IN_Price.
+      
+      /* Validate before saving */
+      isValid = objItemEntity:ValidateItem(
+          INPUT-OUTPUT DATASET dsItem BY-REFERENCE, 
+          OUTPUT cErrorMessage
+      ).
+      
+      IF isValid THEN
+          /* Save changes */
+          objItemEntity:UpdateItem(INPUT-OUTPUT DATASET dsItem BY-REFERENCE).
+      ELSE DO:
+          MESSAGE cErrorMessage VIEW-AS ALERT-BOX.
+          RETURN NO-APPLY.
+      END.
   END.
   ELSE
-     MESSAGE 'Item not found' VIEW-AS ALERT-BOX.
+      MESSAGE 'Item not found' VIEW-AS ALERT-BOX.
 
 END.
 
@@ -332,7 +382,7 @@ PROCEDURE enable_UI :
                Settings" section of the widget Property Sheets.
 ------------------------------------------------------------------------------*/
 
-  {&OPEN-QUERY-DEFAULT-FRAME}
+  {&OPEN-QUERY-DEFAULT-FRAME} 
   GET FIRST DEFAULT-FRAME.
   DISPLAY FILL-IN_ItemNum FILL-IN_Price 
       WITH FRAME DEFAULT-FRAME IN WINDOW C-Win.
@@ -344,3 +394,4 @@ END PROCEDURE.
 
 /* _UIB-CODE-BLOCK-END */
 &ANALYZE-RESUME
+
